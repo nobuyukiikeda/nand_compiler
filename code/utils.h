@@ -29,7 +29,7 @@ public:
   static std::vector<std::string> split(std::string &string, std::string separator)
   {
     auto list = std::vector<std::string>();
-    if (separator.length == 0)
+    if (separator.length() == 0)
     {
       list.push_back(string);
     }
@@ -45,7 +45,7 @@ public:
           break;
         }
         list.push_back(string.substr(offset, pos - offset));
-        offset = pos + separator.length;
+        offset = pos + separator.length();
       }
     }
     return list;
