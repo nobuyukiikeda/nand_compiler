@@ -16,6 +16,12 @@ class CodeWriter
   std::ofstream writing_file;
   std::string file_name;
   int sp = 256;
+  int lcl_base = 300;
+  int arg_base = 400;
+  int this_base = 3000;
+  int that_base = 3010;
+  int temp_base = 5;
+  int lineNum = 0;
 
 public:
   CodeWriter(std::string file_name) : file_name(file_name)
@@ -25,47 +31,244 @@ public:
 
   void write_arithmetic(std::string command)
   {
+    ;
     if (command == "add")
     {
       write_add();
+    }
+    else if (command == "sub")
+    {
+      write_sub();
+    }
+    else if (command == "eq")
+    {
+      write_eq();
+    }
+    else if (command == "lt")
+    {
+      write_lt();
+    }
+    else if (command == "gt")
+    {
+      write_gt();
+    }
+    else if (command == "neg")
+    {
+      write_neg();
+    }
+    else if (command == "and")
+    {
+      write_and();
+    }
+    else if (command == "or")
+    {
+      write_or();
+    }
+    else if (command == "not")
+    {
+      write_not();
     }
   }
 
   void write_push(std::string segment, int index)
   {
     int value = get_index_value(segment, index);
-    writing_file << "@" + std::to_string(value) << std::endl;
-    writing_file << "D=A" << std::endl;
-    writing_file << "@" + std::to_string(sp) << std::endl;
-    writing_file << "M=D" << std::endl;
-    sp++;
+    write("@" + std::to_string(value));
+    if (segment == "constant")
+    {
+      write("D=A");
+    }
+    else
+    {
+      write("D=M");
+    }
+    write("@" + std::to_string(sp));
+    write("M=D");
+    add_stack();
   }
 
   void write_pop(std::string segment, int index)
   {
+    sub_stack();
+    int value = get_index_value(segment, index);
+    write("@" + std::to_string(sp));
+    write("D=M");
+    write("@" + std::to_string(value));
+    write("M=D");
   }
 
   void close()
   {
+    write("@" + std::to_string(lineNum + 1));
+    write("0;JMP");
     writing_file.close();
   }
 
 private:
+  void add_stack()
+  {
+    ++sp;
+    write("@0");
+    write("M=M+1");
+  }
+
+  void sub_stack()
+  {
+    --sp;
+    write("@0");
+    write("M=M-1");
+  }
+
   int get_index_value(std::string segment, int index)
   {
     if (segment == "constant")
     {
       return index;
     }
+    else if (segment == "local")
+    {
+      return lcl_base + index;
+    }
+    else if (segment == "argument")
+    {
+      return arg_base + index;
+    }
+    else if (segment == "this")
+    {
+      return this_base + index;
+    }
+    else if (segment == "that")
+    {
+      return that_base + index;
+    }
+    else if (segment == "temp")
+    {
+      return temp_base + index;
+    }
     return 0;
+  }
+
+  void write(std::string command)
+  {
+    // std::cout << std::to_string(lineNum) + "行目：" << command << std::endl;
+    ++lineNum;
+    writing_file << command << std::endl;
   }
 
   void write_add()
   {
-    sp--;
-    writing_file << "@" + std::to_string(sp) << std::endl;
-    writing_file << "D=M" << std::endl;
-    sp--;
-    writing_file << "D=D+M" << std::endl;
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("D=M");
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("M=D+M");
+    add_stack();
+  }
+
+  void write_sub()
+  {
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("D=M");
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("M=M-D");
+    add_stack();
+  }
+
+  void write_eq()
+  {
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("D=M");
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("D=M-D");
+    write("@" + std::to_string(lineNum + 6));
+    write("D;JEQ");
+    write("@" + std::to_string(sp));
+    write("M=0");
+    write("@" + std::to_string(lineNum + 4));
+    write("0;JMP");
+    write("@" + std::to_string(sp));
+    write("M=-1");
+    add_stack();
+  }
+
+  void write_lt()
+  {
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("D=M");
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("D=M-D");
+    write("@" + std::to_string(lineNum + 6));
+    write("D;JLT");
+    write("@" + std::to_string(sp));
+    write("M=0");
+    write("@" + std::to_string(lineNum + 4));
+    write("0;JMP");
+    write("@" + std::to_string(sp));
+    write("M=-1");
+    add_stack();
+  }
+
+  void write_gt()
+  {
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("D=M");
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("D=M-D");
+    write("@" + std::to_string(lineNum + 6));
+    write("D;JGT");
+    write("@" + std::to_string(sp));
+    write("M=0");
+    write("@" + std::to_string(lineNum + 4));
+    write("0;JMP");
+    write("@" + std::to_string(sp));
+    write("M=-1");
+    add_stack();
+  }
+
+  void write_neg()
+  {
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("M=-M");
+    add_stack();
+  }
+
+  void write_and()
+  {
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("D=M");
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("M=D&M");
+    add_stack();
+  }
+
+  void write_or()
+  {
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("D=M");
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("M=D|M");
+    add_stack();
+  }
+
+  void write_not()
+  {
+    sub_stack();
+    write("@" + std::to_string(sp));
+    write("M=!M");
+    add_stack();
   }
 };
