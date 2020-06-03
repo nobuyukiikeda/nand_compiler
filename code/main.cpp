@@ -17,9 +17,10 @@ int main()
   std::cout << "ファイルパスを入力してください。" << std::endl;
   std::string path;
   std::cin >> path;
-  path = "/mnt/c/Users/nobu/htdocs/nand2tetris/projects/07/StackArithmetic/SimpleAdd/SimpleAdd.vm";
+  // path = "/mnt/c/Users/nobu/htdocs/nand2tetris/projects/07/StackArithmetic/SimpleAdd/SimpleAdd.vm";
   // path = "/mnt/c/Users/nobu/htdocs/nand2tetris/projects/07/StackArithmetic/StackTest/StackTest.vm";
   // path = "/mnt/c/Users/nobu/htdocs/nand2tetris/projects/07/MemoryAccess/BasicTest/BasicTest.vm";
+  path = "/mnt/c/Users/nobu/htdocs/nand2tetris/projects/07/MemoryAccess/PointerTest/PointerTest.vm";
   std::ifstream ifs(path);
   if (ifs.fail())
   {

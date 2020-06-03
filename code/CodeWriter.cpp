@@ -16,10 +16,11 @@ class CodeWriter
   std::ofstream writing_file;
   std::string file_name;
   int sp = 256;
-  int lcl_base = 300;
-  int arg_base = 400;
-  int this_base = 3000;
-  int that_base = 3010;
+  int lcl_base = 0;
+  int arg_base = 0;
+  int this_base = 0;
+  int that_base = 0;
+  int pointer_base = 3;
   int temp_base = 5;
   int lineNum = 0;
 
@@ -73,16 +74,16 @@ public:
   void write_push(std::string segment, int index)
   {
     int value = get_index_value(segment, index);
-    write("@" + std::to_string(value));
     if (segment == "constant")
     {
+      write("@" + std::to_string(value));
       write("D=A");
     }
     else
     {
       write("D=M");
     }
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("M=D");
     add_stack();
   }
@@ -91,7 +92,7 @@ public:
   {
     sub_stack();
     int value = get_index_value(segment, index);
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("D=M");
     write("@" + std::to_string(value));
     write("M=D");
@@ -135,11 +136,23 @@ private:
     }
     else if (segment == "this")
     {
-      return this_base + index;
+      write("@" + std::to_string(index));
+      write("D=A");
+      write("@THIS");
+      write("D=D+A");
+      // return this_base + index;
     }
     else if (segment == "that")
     {
-      return that_base + index;
+      write("@" + std::to_string(index));
+      write("D=A");
+      write("@THAT");
+      write("D=D+A");
+      // return that_base + index;
+    }
+    else if (segment == "pointer")
+    {
+      return pointer_base + index;
     }
     else if (segment == "temp")
     {
@@ -158,10 +171,10 @@ private:
   void write_add()
   {
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("D=M");
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("M=D+M");
     add_stack();
   }
@@ -169,10 +182,10 @@ private:
   void write_sub()
   {
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("D=M");
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("M=M-D");
     add_stack();
   }
@@ -180,18 +193,18 @@ private:
   void write_eq()
   {
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("D=M");
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("D=M-D");
     write("@" + std::to_string(lineNum + 6));
     write("D;JEQ");
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("M=0");
     write("@" + std::to_string(lineNum + 4));
     write("0;JMP");
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("M=-1");
     add_stack();
   }
@@ -199,18 +212,18 @@ private:
   void write_lt()
   {
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("D=M");
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("D=M-D");
     write("@" + std::to_string(lineNum + 6));
     write("D;JLT");
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("M=0");
     write("@" + std::to_string(lineNum + 4));
     write("0;JMP");
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("M=-1");
     add_stack();
   }
@@ -218,18 +231,18 @@ private:
   void write_gt()
   {
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("D=M");
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("D=M-D");
     write("@" + std::to_string(lineNum + 6));
     write("D;JGT");
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("M=0");
     write("@" + std::to_string(lineNum + 4));
     write("0;JMP");
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("M=-1");
     add_stack();
   }
@@ -237,7 +250,7 @@ private:
   void write_neg()
   {
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("M=-M");
     add_stack();
   }
@@ -245,10 +258,10 @@ private:
   void write_and()
   {
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("D=M");
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("M=D&M");
     add_stack();
   }
@@ -256,10 +269,10 @@ private:
   void write_or()
   {
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("D=M");
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("M=D|M");
     add_stack();
   }
@@ -267,7 +280,7 @@ private:
   void write_not()
   {
     sub_stack();
-    write("@" + std::to_string(sp));
+    write("@SP");
     write("M=!M");
     add_stack();
   }
