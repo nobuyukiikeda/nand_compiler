@@ -50,6 +50,16 @@ public:
     }
     return list;
   }
+
+  static std::string get_extention(const char *str)
+  {
+    auto st = std::string(str);
+    auto list = split(st, ".");
+    auto v = list.end();
+    v--;
+    std::cout << *v << std::endl;
+    return *v;
+  }
 };
 
 #endif /* utils_h */

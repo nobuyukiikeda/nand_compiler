@@ -18,6 +18,12 @@ std::map<std::string, std::string> command_type_map = {
     {"not", "C_ARITHMETIC"},
     {"push", "C_PUSH"},
     {"pop", "C_POP"},
+    {"label", "C_LABEL"},
+    {"goto", "C_GOTO"},
+    {"if-goto", "C_IF"},
+    {"return", "C_RETURN"},
+    {"function", "C_FUNCTION"},
+    {"call", "C_CALL"},
 };
 
 class Parser
@@ -76,6 +82,12 @@ private:
 
     // コマンドを各要素に分解
     auto command_list = utils.split(command, " ");
+    auto c = command_list.begin();
+    while (c != command_list.end())
+    {
+      // std::cout << *c << std::endl;
+      ++c;
+    }
 
     // コマンドタイプをセット
     command_type = get_command_type(command_list[0]);
@@ -102,6 +114,12 @@ private:
     if (command_type == "C_ARITHMETIC")
     {
       arg1 = command_list[0];
+      arg2 = 0;
+    }
+    else if (command_type == "C_RETURN")
+    {
+      // C_RETURNは引数なし
+      arg1 = "";
       arg2 = 0;
     }
     else

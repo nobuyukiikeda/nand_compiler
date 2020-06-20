@@ -10,16 +10,12 @@
 // R4: THAT: thatのベース
 // R5-12:    tempの値
 // R13-15:   汎用レジスタ
+// 16~:      static
 
 class CodeWriter
 {
   std::ofstream writing_file;
   std::string file_name;
-  int sp = 256;
-  int lcl_base = 0;
-  int arg_base = 0;
-  int this_base = 0;
-  int that_base = 0;
   int pointer_base = 3;
   int temp_base = 5;
   int lineNum = 0;
@@ -29,6 +25,11 @@ public:
   {
     writing_file.open(file_name, std::ios::out);
   };
+
+  void write_comment(std::string comment)
+  {
+    writing_file << "// " << comment << std::endl;
+  }
 
   void write_arithmetic(std::string command)
   {
@@ -73,29 +74,315 @@ public:
 
   void write_push(std::string segment, int index)
   {
-    int value = get_index_value(segment, index);
     if (segment == "constant")
     {
-      write("@" + std::to_string(value));
+      write("@" + std::to_string(index));
       write("D=A");
+      write("@SP");
+      write("A=M");
+      write("M=D");
     }
+    else if (segment == "pointer")
+    {
+      write("@" + std::to_string(index));
+      write("D=A");
+      write("@R3");
+      write("A=D+A");
+      write("D=M");
+      write("@SP");
+      write("A=M");
+      write("M=D");
+    }
+    else if (segment == "temp")
+    {
+      write("@" + std::to_string(index));
+      write("D=A");
+      write("@R5");
+      write("A=D+A");
+      write("D=M");
+      write("@SP");
+      write("A=M");
+      write("M=D");
+    }
+    else if (segment == "static")
+    {
+      write("@" + std::to_string(index));
+      write("D=A");
+      write("@16");
+      write("A=D+A");
+      write("D=M");
+      write("@SP");
+      write("A=M");
+      write("M=D");
+    }
+    // それ以外の場合
     else
     {
+      // 対象のアドレスの値を汎用レジスタに保存
+      write("@" + std::to_string(index));
+      write("D=A");
+
+      // セグメント固有の行を挿入
+      if (segment == "local")
+      {
+        write("@LCL");
+      }
+      else if (segment == "argument")
+      {
+        write("@ARG");
+      }
+      else if (segment == "this")
+      {
+        write("@THIS");
+      }
+      else if (segment == "that")
+      {
+        write("@THAT");
+      }
+
+      write("A=D+M");
       write("D=M");
+      write("@SP");
+      write("A=M");
+      write("M=D");
     }
-    write("@SP");
-    write("M=D");
     add_stack();
   }
 
-  void write_pop(std::string segment, int index)
+  void
+  write_pop(std::string segment, int index)
   {
     sub_stack();
-    int value = get_index_value(segment, index);
+    // pointerの場合
+    if (segment == "pointer")
+    {
+      // 対象のアドレスを汎用レジスタに保存
+      write("@" + std::to_string(index));
+      write("D=A");
+      write("@R3");
+      write("D=D+A");
+      write("@R13");
+      write("M=D");
+      // stackの値を取得
+      write("@SP");
+      write("A=M");
+      write("D=M");
+      // 保存していたアドレスにstackの値を代入
+      write("@R13");
+      write("A=M");
+      write("M=D");
+    }
+    // tempの場合
+    else if (segment == "temp")
+    {
+      // 対象のアドレスを汎用レジスタに保存
+      write("@" + std::to_string(index));
+      write("D=A");
+      write("@R5");
+      write("D=D+A");
+      write("@R13");
+      write("M=D");
+      // stackの値を取得
+      write("@SP");
+      write("A=M");
+      write("D=M");
+      // 保存していたアドレスにstackの値を代入
+      write("@R13");
+      write("A=M");
+      write("M=D");
+    }
+    // staticの場合
+    else if (segment == "static")
+    {
+      // 対象のアドレスを汎用レジスタに保存
+      write("@" + std::to_string(index));
+      write("D=A");
+      write("@16");
+      write("D=D+A");
+      write("@R13");
+      write("M=D");
+      // stackの値を取得
+      write("@SP");
+      write("A=M");
+      write("D=M");
+      // 保存していたアドレスにstackの値を代入
+      write("@R13");
+      write("A=M");
+      write("M=D");
+    }
+    // それ以外の場合
+    else
+    {
+      // 対象のアドレスを汎用レジスタに保存
+      write("@" + std::to_string(index));
+      write("D=A");
+
+      // セグメント固有の行を挿入
+      if (segment == "local")
+      {
+        write("@LCL");
+      }
+      else if (segment == "argument")
+      {
+        write("@ARG");
+      }
+      else if (segment == "this")
+      {
+        write("@THIS");
+      }
+      else if (segment == "that")
+      {
+        write("@THAT");
+      }
+
+      write("D=D+M");
+      write("@R13");
+      write("M=D");
+      // stackの値を取得
+      write("@SP");
+      write("A=M");
+      write("D=M");
+      // 保存していたアドレスにstackの値を代入
+      write("@R13");
+      write("A=M");
+      write("M=D");
+    }
+  }
+
+  void write_label(std::string command, std::string label)
+  {
+    write("(" + label + ")");
+  }
+
+  void write_goto(std::string command, std::string label)
+  {
+    write("@" + label);
+    write("0;JMP");
+  }
+
+  void write_if(std::string command, std::string label)
+  {
+    sub_stack();
+    write("@SP");
+    write("A=M");
+    write("D=M");
+    write("@" + label);
+    write("D;JGT");
+  }
+
+  void write_return()
+  {
+    // リターンアドレスを取得
+    write("@LCL");
+    write("D=M");
+    write("@5");
+    write("D=D-A");
+    write("@R15");
+    write("M=D");
+    // 関数の返り値を呼び出し元スタックの上にセット
+    write_pop("argument", 0);
+    write("@ARG");
+    write("D=M");
+    // SPの設定
+    write("@SP");
+    write("M=D+1");
+    // THATの設定
+    write("@LCL");
+    write("A=M-1");
+    write("D=M");
+    write("@THAT");
+    write("M=D");
+    // THISの設定
+    write("@2");
+    write("D=A");
+    write("@LCL");
+    write("A=M-D");
+    write("D=M");
+    write("@THIS");
+    write("M=D");
+    // ARGの設定
+    write("@3");
+    write("D=A");
+    write("@LCL");
+    write("A=M-D");
+    write("D=M");
+    write("@ARG");
+    write("M=D");
+    // LCLの設定
+    write("@4");
+    write("D=A");
+    write("@LCL");
+    write("A=M-D");
+    write("D=M");
+    write("@LCL");
+    write("M=D");
+    // return
+    write("@R15");
+    write("A=M");
+    write("0;JMP");
+  }
+
+  void write_function(std::string function_name, std::string num_local)
+  {
+    write("(" + function_name + ")");
+    for (int i = 0; i < std::stoi(num_local); i++)
+    {
+      write_push("constant", 0);
+    }
+  }
+
+  void write_call(std::string function_name, std::string num_args)
+  {
+    // リターンアドレスをpush
+    write("@RA" + std::to_string(lineNum));
+    write("D=A");
+    write("@SP");
+    write("A=M");
+    write("M=D");
+    add_stack();
+    // LCLをpush
+    write("@LCL");
+    write("D=M");
+    write("@SP");
+    write("A=M");
+    write("M=D");
+    add_stack();
+    // ARGをpush
+    write("@ARG");
+    write("D=M");
+    write("@SP");
+    write("A=M");
+    write("M=D");
+    add_stack();
+    // THISをpush
+    write("@THIS");
+    write("D=M");
+    write("@SP");
+    write("A=M");
+    write("M=D");
+    add_stack();
+    // THATをpush
+    write("@THAT");
+    write("D=M");
+    write("@SP");
+    write("A=M");
+    write("M=D");
+    add_stack();
+    // ARGを呼び出し側に移す
+    write("@" + num_args);
+    write("D=A");
+    write("@SP");
+    write("D=M-D");
+    write("@5");
+    write("D=D-A");
+    write("@ARG");
+    write("M=D");
+    // LCLを呼び出し側に移す
     write("@SP");
     write("D=M");
-    write("@" + std::to_string(value));
+    write("LCL");
     write("M=D");
+    write("(RA" + std::to_string(lineNum) + ")");
   }
 
   void close()
@@ -108,57 +395,14 @@ public:
 private:
   void add_stack()
   {
-    ++sp;
-    write("@0");
+    write("@SP");
     write("M=M+1");
   }
 
   void sub_stack()
   {
-    --sp;
-    write("@0");
+    write("@SP");
     write("M=M-1");
-  }
-
-  int get_index_value(std::string segment, int index)
-  {
-    if (segment == "constant")
-    {
-      return index;
-    }
-    else if (segment == "local")
-    {
-      return lcl_base + index;
-    }
-    else if (segment == "argument")
-    {
-      return arg_base + index;
-    }
-    else if (segment == "this")
-    {
-      write("@" + std::to_string(index));
-      write("D=A");
-      write("@THIS");
-      write("D=D+A");
-      // return this_base + index;
-    }
-    else if (segment == "that")
-    {
-      write("@" + std::to_string(index));
-      write("D=A");
-      write("@THAT");
-      write("D=D+A");
-      // return that_base + index;
-    }
-    else if (segment == "pointer")
-    {
-      return pointer_base + index;
-    }
-    else if (segment == "temp")
-    {
-      return temp_base + index;
-    }
-    return 0;
   }
 
   void write(std::string command)
@@ -172,9 +416,11 @@ private:
   {
     sub_stack();
     write("@SP");
+    write("A=M");
     write("D=M");
     sub_stack();
     write("@SP");
+    write("A=M");
     write("M=D+M");
     add_stack();
   }
@@ -183,9 +429,11 @@ private:
   {
     sub_stack();
     write("@SP");
+    write("A=M");
     write("D=M");
     sub_stack();
     write("@SP");
+    write("A=M");
     write("M=M-D");
     add_stack();
   }
@@ -194,17 +442,21 @@ private:
   {
     sub_stack();
     write("@SP");
+    write("A=M");
     write("D=M");
     sub_stack();
     write("@SP");
+    write("A=M");
     write("D=M-D");
-    write("@" + std::to_string(lineNum + 6));
+    write("@" + std::to_string(lineNum + 7));
     write("D;JEQ");
     write("@SP");
+    write("A=M");
     write("M=0");
-    write("@" + std::to_string(lineNum + 4));
+    write("@" + std::to_string(lineNum + 5));
     write("0;JMP");
     write("@SP");
+    write("A=M");
     write("M=-1");
     add_stack();
   }
@@ -213,17 +465,21 @@ private:
   {
     sub_stack();
     write("@SP");
+    write("A=M");
     write("D=M");
     sub_stack();
     write("@SP");
+    write("A=M");
     write("D=M-D");
-    write("@" + std::to_string(lineNum + 6));
+    write("@" + std::to_string(lineNum + 7));
     write("D;JLT");
     write("@SP");
+    write("A=M");
     write("M=0");
-    write("@" + std::to_string(lineNum + 4));
+    write("@" + std::to_string(lineNum + 5));
     write("0;JMP");
     write("@SP");
+    write("A=M");
     write("M=-1");
     add_stack();
   }
@@ -235,14 +491,17 @@ private:
     write("D=M");
     sub_stack();
     write("@SP");
+    write("A=M");
     write("D=M-D");
-    write("@" + std::to_string(lineNum + 6));
+    write("@" + std::to_string(lineNum + 7));
     write("D;JGT");
     write("@SP");
+    write("A=M");
     write("M=0");
-    write("@" + std::to_string(lineNum + 4));
+    write("@" + std::to_string(lineNum + 5));
     write("0;JMP");
     write("@SP");
+    write("A=M");
     write("M=-1");
     add_stack();
   }
@@ -251,6 +510,7 @@ private:
   {
     sub_stack();
     write("@SP");
+    write("A=M");
     write("M=-M");
     add_stack();
   }
@@ -259,9 +519,11 @@ private:
   {
     sub_stack();
     write("@SP");
+    write("A=M");
     write("D=M");
     sub_stack();
     write("@SP");
+    write("A=M");
     write("M=D&M");
     add_stack();
   }
@@ -270,9 +532,11 @@ private:
   {
     sub_stack();
     write("@SP");
+    write("A=M");
     write("D=M");
     sub_stack();
     write("@SP");
+    write("A=M");
     write("M=D|M");
     add_stack();
   }
@@ -281,6 +545,7 @@ private:
   {
     sub_stack();
     write("@SP");
+    write("A=M");
     write("M=!M");
     add_stack();
   }
