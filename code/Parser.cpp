@@ -85,7 +85,6 @@ private:
     auto c = command_list.begin();
     while (c != command_list.end())
     {
-      // std::cout << *c << std::endl;
       ++c;
     }
 

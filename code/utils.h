@@ -57,7 +57,6 @@ public:
     auto list = split(st, ".");
     auto v = list.end();
     v--;
-    std::cout << *v << std::endl;
     return *v;
   }
 };

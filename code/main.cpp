@@ -18,7 +18,6 @@ void read_file(std::ifstream &ifs, CodeWriter &code_writer)
   while (parser.has_more_command())
   {
     parser.advance();
-    // std::cout << parser.command + " " << parser.arg1 << std::endl;
 
     if (parser.command_type == "C_PUSH")
     {
@@ -38,17 +37,17 @@ void read_file(std::ifstream &ifs, CodeWriter &code_writer)
     else if (parser.command_type == "C_LABEL")
     {
       code_writer.write_comment(parser.command);
-      code_writer.write_label(parser.command, parser.arg1);
+      code_writer.write_label(parser.arg1);
     }
     else if (parser.command_type == "C_GOTO")
     {
       code_writer.write_comment(parser.command);
-      code_writer.write_goto(parser.command, parser.arg1);
+      code_writer.write_goto(parser.arg1);
     }
     else if (parser.command_type == "C_IF")
     {
       code_writer.write_comment(parser.command);
-      code_writer.write_if(parser.command, parser.arg1);
+      code_writer.write_if(parser.arg1);
     }
     else if (parser.command_type == "C_RETURN")
     {
@@ -58,12 +57,12 @@ void read_file(std::ifstream &ifs, CodeWriter &code_writer)
     else if (parser.command_type == "C_FUNCTION")
     {
       code_writer.write_comment(parser.command);
-      code_writer.write_function(parser.command, parser.arg1);
+      code_writer.write_function(parser.arg1, parser.arg2);
     }
     else if (parser.command_type == "C_CALL")
     {
       code_writer.write_comment(parser.command);
-      code_writer.write_call(parser.command, parser.arg1);
+      code_writer.write_call(parser.arg1, parser.arg2);
     }
   }
 }
@@ -74,7 +73,8 @@ int main()
   std::cout << "ディレクトリを入力してください。" << std::endl;
   // dirディレクトリ直下に含まれる全ファイルを取得
   std::vector<std::string> paths = {};
-  const char *dir = "";
+  char *dir;
+  std::cin >> *dir;
   auto dp = opendir(dir);
   if (dp != NULL)
   {
@@ -84,10 +84,18 @@ int main()
       dent = readdir(dp);
       if (dent)
       {
-        auto ex = utils.get_extention(dent->d_name);
-        if (ex == "vm")
+        auto extention = utils.get_extention(dent->d_name);
+        if (extention == "vm")
         {
-          paths.push_back(std::string(dir) + std::string(dent->d_name));
+          // Sys.vmは先頭に入れる
+          if (std::string(dent->d_name) == "Sys.vm")
+          {
+            paths.insert(paths.begin(), std::string(dir) + std::string(dent->d_name));
+          }
+          else
+          {
+            paths.push_back(std::string(dir) + std::string(dent->d_name));
+          }
         }
       }
     } while (dent != NULL);
@@ -96,6 +104,9 @@ int main()
   // ファイル書き込みの準備
   std::string output_filename = std::string(dir) + "Main.asm";
   CodeWriter code_writer(output_filename);
+
+  // 起動時のコード
+  code_writer.init();
 
   for (size_t i = 0; i < paths.size(); i++)
   {

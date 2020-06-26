@@ -18,7 +18,7 @@ class CodeWriter
   std::string file_name;
   int pointer_base = 3;
   int temp_base = 5;
-  int lineNum = 0;
+  int lineNum = 1;
 
 public:
   CodeWriter(std::string file_name) : file_name(file_name)
@@ -26,9 +26,18 @@ public:
     writing_file.open(file_name, std::ios::out);
   };
 
+  void init()
+  {
+    write("@256");
+    write("D=A");
+    write("@SP");
+    write("M=D");
+    write_call("Sys.init", 0);
+  }
+
   void write_comment(std::string comment)
   {
-    writing_file << "// " << comment << std::endl;
+    writing_file << "// --- " << lineNum << "行目 " << comment << std::endl;
   }
 
   void write_arithmetic(std::string command)
@@ -249,25 +258,26 @@ public:
     }
   }
 
-  void write_label(std::string command, std::string label)
+  void write_label(std::string label)
   {
-    write("(" + label + ")");
+    // LABELは行数に実行時削除されるためカウントしない
+    writing_file << "(" + label + ")" << std::endl;
   }
 
-  void write_goto(std::string command, std::string label)
+  void write_goto(std::string label)
   {
     write("@" + label);
     write("0;JMP");
   }
 
-  void write_if(std::string command, std::string label)
+  void write_if(std::string label)
   {
     sub_stack();
     write("@SP");
     write("A=M");
     write("D=M");
     write("@" + label);
-    write("D;JGT");
+    write("D;JNE");
   }
 
   void write_return()
@@ -322,19 +332,21 @@ public:
     write("0;JMP");
   }
 
-  void write_function(std::string function_name, std::string num_local)
+  void write_function(std::string function_name, int num_local)
   {
-    write("(" + function_name + ")");
-    for (int i = 0; i < std::stoi(num_local); i++)
+    // 関数宣言は行数に実行時削除されるためカウントしない
+    writing_file << "(" + function_name + ")" << std::endl;
+    for (int i = 0; i < num_local; i++)
     {
       write_push("constant", 0);
     }
   }
 
-  void write_call(std::string function_name, std::string num_args)
+  void write_call(std::string function_name, int num_args)
   {
     // リターンアドレスをpush
-    write("@RA" + std::to_string(lineNum));
+    auto label = std::to_string(lineNum);
+    write("@RA" + label);
     write("D=A");
     write("@SP");
     write("A=M");
@@ -369,7 +381,7 @@ public:
     write("M=D");
     add_stack();
     // ARGを呼び出し側に移す
-    write("@" + num_args);
+    write("@" + std::to_string(num_args));
     write("D=A");
     write("@SP");
     write("D=M-D");
@@ -380,15 +392,16 @@ public:
     // LCLを呼び出し側に移す
     write("@SP");
     write("D=M");
-    write("LCL");
+    write("@LCL");
     write("M=D");
-    write("(RA" + std::to_string(lineNum) + ")");
+    // 関数へ移動
+    write_goto(function_name);
+    // リターンアドレスのラベル宣言
+    write("(RA" + label + ")");
   }
 
   void close()
   {
-    write("@" + std::to_string(lineNum + 1));
-    write("0;JMP");
     writing_file.close();
   }
 
@@ -408,8 +421,8 @@ private:
   void write(std::string command)
   {
     // std::cout << std::to_string(lineNum) + "行目：" << command << std::endl;
-    ++lineNum;
     writing_file << command << std::endl;
+    ++lineNum;
   }
 
   void write_add()
