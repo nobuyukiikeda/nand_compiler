@@ -81,9 +81,8 @@ int main()
   // dirディレクトリ直下に含まれる全ファイルを取得
   std::vector<std::string> paths = {};
   // ディレクトリ名をchar型に変換
-  char *dir = new char[dir_name.size() + 1]; // メモリ確保
-  std::strcpy(dir, dir_name.c_str());        // コピー
-  delete[] dir;                              // メモリ解放
+  const char *dir = dir_name.c_str();
+  std::cout << *dir << std::endl;
   auto dp = opendir(dir);
   if (dp != NULL)
   {
