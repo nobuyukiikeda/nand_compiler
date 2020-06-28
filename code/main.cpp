@@ -2,6 +2,7 @@
 #include <iostream>
 #include <map>
 #include <string>
+#include <cstring>
 #include <vector>
 #include <bitset>
 #include <dirent.h>
@@ -69,12 +70,20 @@ void read_file(std::ifstream &ifs, CodeWriter &code_writer)
 
 int main()
 {
-  // ファイルの読み込み
+  // 入力ファイルのあるディレクトリ, 出力ファイル名を入力
   std::cout << "ディレクトリを入力してください。" << std::endl;
+  std::string dir_name;
+  std::cin >> dir_name;
+  std::cout << "出力するファイル名を入力してください。" << std::endl;
+  std::string file_name;
+  std::cin >> file_name;
+
   // dirディレクトリ直下に含まれる全ファイルを取得
   std::vector<std::string> paths = {};
-  char *dir;
-  std::cin >> *dir;
+  // ディレクトリ名をchar型に変換
+  char *dir = new char[dir_name.size() + 1]; // メモリ確保
+  std::strcpy(dir, dir_name.c_str());        // コピー
+  delete[] dir;                              // メモリ解放
   auto dp = opendir(dir);
   if (dp != NULL)
   {
@@ -102,7 +111,7 @@ int main()
   }
 
   // ファイル書き込みの準備
-  std::string output_filename = std::string(dir) + "Main.asm";
+  std::string output_filename = std::string(dir) + file_name + ".asm";
   CodeWriter code_writer(output_filename);
 
   // 起動時のコード
@@ -117,6 +126,7 @@ int main()
       std::cerr << "失敗" << std::endl;
       continue;
     }
+    code_writer.set_local_static_base();
     read_file(ifs, code_writer);
   }
 

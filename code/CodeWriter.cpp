@@ -18,7 +18,9 @@ class CodeWriter
   std::string file_name;
   int pointer_base = 3;
   int temp_base = 5;
-  int lineNum = 1;
+  int lineNum = 0;
+  int global_static_pos = 16;
+  int local_static_pos = 16;
 
 public:
   CodeWriter(std::string file_name) : file_name(file_name)
@@ -28,11 +30,16 @@ public:
 
   void init()
   {
-    write("@256");
+    write("@261");
     write("D=A");
     write("@SP");
     write("M=D");
-    write_call("Sys.init", 0);
+    // write_call("Sys.init", 0);
+  }
+
+  void set_local_static_base()
+  {
+    local_static_pos = global_static_pos + 1;
   }
 
   void write_comment(std::string comment)
@@ -115,10 +122,11 @@ public:
     }
     else if (segment == "static")
     {
-      write("@" + std::to_string(index));
-      write("D=A");
-      write("@16");
-      write("A=D+A");
+      if (global_static_pos < local_static_pos + index)
+      {
+        global_static_pos = local_static_pos + index;
+      }
+      write("@" + std::to_string(local_static_pos + index));
       write("D=M");
       write("@SP");
       write("A=M");
@@ -204,10 +212,12 @@ public:
     else if (segment == "static")
     {
       // 対象のアドレスを汎用レジスタに保存
-      write("@" + std::to_string(index));
+      if (global_static_pos < local_static_pos + index)
+      {
+        global_static_pos = local_static_pos + index;
+      }
+      write("@" + std::to_string(local_static_pos + index));
       write("D=A");
-      write("@16");
-      write("D=D+A");
       write("@R13");
       write("M=D");
       // stackの値を取得
@@ -283,26 +293,32 @@ public:
   void write_return()
   {
     // リターンアドレスを取得
+    write_comment("リターンアドレスを取得");
     write("@LCL");
     write("D=M");
     write("@5");
-    write("D=D-A");
+    write("A=D-A");
+    write("D=M");
     write("@R15");
     write("M=D");
     // 関数の返り値を呼び出し元スタックの上にセット
+    write_comment("関数の返り値を呼び出し元スタックの上にセット");
     write_pop("argument", 0);
     write("@ARG");
     write("D=M");
     // SPの設定
+    write_comment("SPの設定");
     write("@SP");
     write("M=D+1");
     // THATの設定
+    write_comment("THATの設定");
     write("@LCL");
     write("A=M-1");
     write("D=M");
     write("@THAT");
     write("M=D");
     // THISの設定
+    write_comment("THISの設定");
     write("@2");
     write("D=A");
     write("@LCL");
@@ -311,6 +327,7 @@ public:
     write("@THIS");
     write("M=D");
     // ARGの設定
+    write_comment("ARGの設定");
     write("@3");
     write("D=A");
     write("@LCL");
@@ -319,6 +336,7 @@ public:
     write("@ARG");
     write("M=D");
     // LCLの設定
+    write_comment("LCLの設定");
     write("@4");
     write("D=A");
     write("@LCL");
@@ -327,6 +345,7 @@ public:
     write("@LCL");
     write("M=D");
     // return
+    write_comment("return");
     write("@R15");
     write("A=M");
     write("0;JMP");
@@ -345,6 +364,7 @@ public:
   void write_call(std::string function_name, int num_args)
   {
     // リターンアドレスをpush
+    write_comment("リターンアドレスをpush");
     auto label = std::to_string(lineNum);
     write("@RA" + label);
     write("D=A");
@@ -353,6 +373,7 @@ public:
     write("M=D");
     add_stack();
     // LCLをpush
+    write_comment("LCLをpush");
     write("@LCL");
     write("D=M");
     write("@SP");
@@ -360,6 +381,7 @@ public:
     write("M=D");
     add_stack();
     // ARGをpush
+    write_comment("ARGをpush");
     write("@ARG");
     write("D=M");
     write("@SP");
@@ -367,6 +389,7 @@ public:
     write("M=D");
     add_stack();
     // THISをpush
+    write_comment("THISをpush");
     write("@THIS");
     write("D=M");
     write("@SP");
@@ -374,6 +397,7 @@ public:
     write("M=D");
     add_stack();
     // THATをpush
+    write_comment("THATをpush");
     write("@THAT");
     write("D=M");
     write("@SP");
@@ -381,6 +405,7 @@ public:
     write("M=D");
     add_stack();
     // ARGを呼び出し側に移す
+    write_comment("ARGを呼び出し側に移す");
     write("@" + std::to_string(num_args));
     write("D=A");
     write("@SP");
@@ -390,6 +415,7 @@ public:
     write("@ARG");
     write("M=D");
     // LCLを呼び出し側に移す
+    write_comment("LCLを呼び出し側に移す");
     write("@SP");
     write("D=M");
     write("@LCL");
@@ -397,7 +423,8 @@ public:
     // 関数へ移動
     write_goto(function_name);
     // リターンアドレスのラベル宣言
-    write("(RA" + label + ")");
+    write_comment("リターンアドレスのラベル宣言");
+    write_label("RA" + label);
   }
 
   void close()
@@ -421,7 +448,7 @@ private:
   void write(std::string command)
   {
     // std::cout << std::to_string(lineNum) + "行目：" << command << std::endl;
-    writing_file << command << std::endl;
+    writing_file << command << "   // " << std::to_string(lineNum) << std::endl;
     ++lineNum;
   }
 
