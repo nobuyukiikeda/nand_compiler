@@ -1,27 +1,47 @@
 #include <string>
 #include <fstream>
-#include <regex>
 #include <iostream>
+#include <map>
 
 #include "utils.h"
 
-const std::regex re(" +|\\(|\\)|\\{|\\}|\\.|\\,|\\;|\\+|\\-|\\*|\\/|\\&|\\||\\<|\\>|\\=|\\~");
-// const std::regex re("//");
+const std::string symbols = " (){}[].,;+-*/&<>=|~";
+const std::map<std::string, std::string> keyword_dictionary{
+    {"class", "CLASS"},
+    {"method", "METHOD"},
+    {"function", "FUNCTION"},
+    {"constructor", "CONSTRUCTOR"},
+    {"int", "INT"},
+    {"boolean", "BOOLEAN"},
+    {"char", "CHAR"},
+    {"void", "VOID"},
+    {"var", "VAR"},
+    {"static", "STATIC"},
+    {"field", "FIELD"},
+    {"let", "LET"},
+    {"do", "DO"},
+    {"if", "IF"},
+    {"else", "ELSE"},
+    {"while", "WHILE"},
+    {"return", "RETURN"},
+    {"true", "TRUE"},
+    {"false", "FALSE"},
+    {"null", "NULL"},
+    {"this", "THIS"}};
 
 class JackTokenizer
 {
-  std::ifstream ifstream;
-  std::ofstream tokens_file;
   std::string file_name;
   std::string token_type = "";
   std::string token = "";
   bool comment_mode = false;
+  std::ifstream ifstream;
+  std::ofstream tokens_file;
 
 public:
   JackTokenizer(std::ifstream ifs, std::string file_name) : file_name(file_name), ifstream(std::move(ifs))
   {
     tokens_file.open(file_name, std::ios::out);
-    tokens_file << "<tokens>" << std::endl;
   }
 
   bool has_more_tokens()
@@ -41,8 +61,6 @@ public:
     // コメント処理
     remove_comment(str);
 
-    std::smatch m;
-
     // 記述処理
     while (str.length() > 0)
     {
@@ -52,78 +70,38 @@ public:
         break;
       }
 
-      std::regex_search(str, m, re);
-      if (!m.ready() || m.empty())
+      // 文字列のケース
+      if (str.find("\"") == 0)
       {
-        break;
+        auto second_pos = str.find("\"", 1);
+        token = str.substr(0, second_pos + 1);
+        set_token_type();
+        write();
+        str = str.substr(second_pos + 1);
+        continue;
       }
 
-      if (m.position(0) == 0)
+      size_t symbol_pos = str.find_first_of(symbols);
+      if (symbol_pos == 0)
       {
         token = str.substr(0, 1);
         set_token_type();
         write();
-        str = str.substr(m.position(0) + 1);
+        str = str.substr(symbol_pos + 1);
       }
       else
       {
-        token = str.substr(0, m.position(0));
+        token = str.substr(0, symbol_pos);
         set_token_type();
         write();
-        str = str.substr(m.position(0));
+        str = str.substr(symbol_pos);
       }
     }
-  }
-
-  std::string keyword()
-  {
-    return "CLASS";
-    return "METHOD";
-    return "FUNCTION";
-    return "CONSTRUCTOR";
-    return "INT";
-    return "BOOLEAN";
-    return "CHAR";
-    return "VOID";
-    return "VAR";
-    return "STATIC";
-    return "FIELD";
-    return "LET";
-    return "DO";
-    return "IF";
-    return "ELSE";
-    return "WHILE";
-    return "RETURN";
-    return "TRUE";
-    return "FALSE";
-    return "NULL";
-    return "THIS";
-  }
-
-  std::string symbol()
-  {
-    return "";
-  }
-
-  std::string identifier()
-  {
-    return "";
-  }
-
-  int intVal()
-  {
-    return 0;
-  }
-
-  std::string stringVal()
-  {
-    return "";
   }
 
   void close()
   {
     {
-      tokens_file << "</tokens>" << std::endl;
       tokens_file.close();
     }
   }
@@ -131,18 +109,49 @@ public:
 private:
   void set_token_type()
   {
-    int int_token = std::stoi(token);
-    if (int_token >= 0)
+    try
     {
-      token_type = "INT_CONST";
+      std::stoi(token);
+      token_type = "integerConstant";
+      return;
     }
-    else
+    catch (...)
     {
+      if (token.find("\"") == 0)
+      {
+        token_type = "stringConstant";
+        token = token.substr(1, token.length() - 2);
+        return;
+      }
 
-      token_type = "KEYWORD";
-      token_type = "SYMBOL";
-      token_type = "IDENTIFIER";
-      token_type = "STRING_CONST";
+      size_t symbol_pos = token.find_first_of(symbols);
+      if (symbol_pos != std::string::npos)
+      {
+        token_type = "symbol";
+        if (token == ">")
+        {
+          token = "&gt;";
+        }
+        else if (token == "<")
+        {
+          token = "&lt;";
+        }
+        else if (token == "&")
+        {
+          token = "&amp;";
+        }
+        return;
+      }
+
+      try
+      {
+        keyword_dictionary.at(token);
+        token_type = "keyword";
+      }
+      catch (...)
+      {
+        token_type = "identifier";
+      }
     }
   }
 
