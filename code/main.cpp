@@ -81,8 +81,9 @@ int main()
   // dirディレクトリ直下に含まれる全ファイルを取得
   std::vector<std::string> paths = {};
   // ディレクトリ名をchar型に変換
-  const char *dir = dir_name.c_str();
-  std::cout << *dir << std::endl;
+  // const char *dir = dir_name.c_str();
+  // std::cout << *dir << std::endl;
+  const char *dir = "/mnt/c/Users/nobu/htdocs/nand2tetris/projects/08/FunctionCalls/StaticsTest/";
   auto dp = opendir(dir);
   if (dp != NULL)
   {
@@ -110,7 +111,8 @@ int main()
   }
 
   // ファイル書き込みの準備
-  std::string output_filename = std::string(dir) + file_name + ".asm";
+  // std::string output_filename = std::string(dir) + file_name + ".asm";
+  std::string output_filename = std::string(dir) + "StaticsTest.asm";
   CodeWriter code_writer(output_filename);
 
   // 起動時のコード

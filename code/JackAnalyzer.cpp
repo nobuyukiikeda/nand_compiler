@@ -3,9 +3,11 @@
 
 int main()
 {
-  std::cout << "ファイル名を入力してください";
+  // std::cout << "ファイル名を入力してください";
   std::string path;
-  std::cin >> path;
+  // std::cin >> path;
+  path = "/mnt/c/Users/nobu/htdocs/nand2tetris/projects/11/Seven/Main.jack";
+  // path = "/mnt/c/Users/nobu/htdocs/nand2tetris/projects/10/Square/Square.jack";
   std::ifstream ifs(path);
 
   JackTokenizer tokenizer(std::move(ifs), "MainT.xml");

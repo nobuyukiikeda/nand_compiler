@@ -2,20 +2,32 @@
 #include <fstream>
 #include <iostream>
 
+#include "SymbolTable.cpp"
+#include "VMWriter.cpp"
+
 const std::string op = "+-*/&|=";
 
 class CompilationEngine
 {
   std::string str;
   size_t indent_size = 0;
-  std::string file_name;
   std::ifstream ifstream;
   std::ofstream output_file;
+  SymbolTable table;
+  VMWriter writer;
+  std::string kind;
+  std::string table_type;
+  std::string class_name;
+  std::string label_name;
+  std::string function_name;
+  int num_args = 0;
+  int num_locals = 0;
 
 public:
-  CompilationEngine(std::ifstream ifs, std::string file_name) : file_name(file_name), ifstream(std::move(ifs))
+  CompilationEngine(std::ifstream ifs, std::string file_name) : ifstream(std::move(ifs)), writer(file_name)
   {
-    output_file.open(file_name, std::ios::out);
+    output_file.open("test.xml", std::ios::out);
+    kind = "class";
     compileClass();
   }
 
@@ -38,6 +50,7 @@ public:
       std::cout << "compileClass Error" << std::endl;
     }
     write(str);
+    class_name = get_token();
 
     std::getline(ifstream, str);
     if (str.find("{") == std::string::npos)
@@ -78,27 +91,70 @@ public:
 private:
   void write(std::string word)
   {
-    for (size_t i = 0; i < indent_size; i++)
-    {
-      output_file << "  ";
-    }
+    write_indent();
     output_file << word << std::endl;
     if (indent_size > 100)
     {
       throw "Endless Loop Error";
       output_file.close();
     }
+
+    if (word.find("<identifier>") != std::string::npos)
+    {
+      // 識別子のカテゴリ
+      write_indent();
+      output_file << "kind: " << kind << std::endl;
+      write_indent();
+      output_file << "type: " << table_type << std::endl;
+
+      bool is_defined = true;
+      auto token = get_token();
+      auto table_kind = table.kind_of(token);
+      if (table_kind == "NONE")
+      {
+        is_defined = false;
+        table.define(token, table_type, kind);
+        table_kind = table.kind_of(token);
+        write_indent();
+        output_file << "defined" << std::endl;
+      }
+      else
+      {
+        write_indent();
+        output_file << "used" << std::endl;
+      }
+      write_indent();
+      output_file << "index: " << table.index_of(token) << std::endl;
+    }
+  }
+
+  void write_indent()
+  {
+    for (size_t i = 0; i < indent_size; i++)
+    {
+      output_file << "  ";
+    }
   }
 
   void compileClassVarDec()
   {
     std::cout << "compileClassVarDec start" << std::endl;
+    kind = "var";
 
     write("<classVarDec>");
     indent_size++;
 
     while (str.find(";") == std::string::npos)
     {
+      table_type = get_token();
+      if (get_token() == "field")
+      {
+        kind = "field";
+      }
+      else if (get_token() == "static")
+      {
+        kind = "static";
+      }
       write(str);
       std::getline(ifstream, str);
     }
@@ -113,15 +169,18 @@ private:
   void compileSubroutine()
   {
     std::cout << "compileSubroutine start" << std::endl;
+    kind = "subroutine";
 
     write("<subroutineDec>");
     indent_size++;
 
-    write(str);
+    write(str); // function or method
+    std::getline(ifstream, str);
+    write(str); // type
     std::getline(ifstream, str);
     write(str);
-    std::getline(ifstream, str);
-    write(str);
+    function_name = get_token();
+
     std::getline(ifstream, str);
     if (str.find("(") == std::string::npos)
     {
@@ -142,20 +201,25 @@ private:
     indent_size--;
     write("</subroutineDec>");
 
+    writer.writer_function(class_name + "." + function_name, num_locals);
     std::cout << "compileSubroutine start" << std::endl;
   }
 
   // 1つ先読みして返す
   void compileParameterList()
   {
+    num_args = 0;
     write("<parameterList>");
     indent_size++;
+    kind = "argument";
 
     std::getline(ifstream, str);
     while (str.find(")") == std::string::npos)
     {
+      table_type = get_token();
       write(str);
       std::getline(ifstream, str);
+      num_args++;
     }
 
     indent_size--;
@@ -166,6 +230,8 @@ private:
   {
     write("<subroutineBody>");
     indent_size++;
+    kind = "var";
+    num_locals = 0;
 
     std::getline(ifstream, str);
     if (str.find("{") == std::string::npos)
@@ -179,6 +245,7 @@ private:
     {
       compileVarDec();
       std::getline(ifstream, str);
+      num_locals++;
     }
 
     compileStatements();
@@ -199,6 +266,7 @@ private:
     write("<varDec>");
     while (str.find(";") == std::string::npos)
     {
+      table_type = get_token();
       write(str);
       std::getline(ifstream, str);
     }
@@ -378,7 +446,6 @@ private:
   // 1つ先読みして返す
   void compileTerm()
   {
-    std::cout << "term start:" << str << std::endl;
     write("<term>");
     indent_size++;
     if (str.find("integerConstant") == 1 ||
@@ -420,7 +487,6 @@ private:
     }
     indent_size--;
     write("</term>");
-    std::cout << "term end:" << str << std::endl;
   }
 
   // 1つ先読みされた状態で呼ばれる
@@ -447,6 +513,7 @@ private:
   // 1つ先読みして返す
   void compileSubroutineCall()
   {
+    table.start_subroutine();
     if (str.find(".") != std::string::npos)
     {
       write(str); // .
@@ -459,5 +526,14 @@ private:
     compileExpressionList();
     write(str);
     std::getline(ifstream, str);
+  }
+
+  std::string get_token()
+  {
+    size_t pos1 = str.find_first_of(">") + 1;
+    size_t pos2 = str.find_last_of("<");
+    auto s = str.substr(pos1, pos2 - pos1);
+    Utils::trim(s);
+    return s;
   }
 };
